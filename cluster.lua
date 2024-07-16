@@ -33,6 +33,7 @@ local function getStructDefinition()
       float          throttle;        // [11]  0 to 1
       float          brake;           // [12]  0 to 1
       float          clutch;          // [13]  0 to 1
+      
   ]]
 end
 
@@ -43,20 +44,21 @@ end
 // bit 0    - shift light
 // bit 1    - full beam
 // bit 2    - handbrake
-// bit 3    - pit speed limiter // N/A
-// bit 4    - TC active or switched off
+// bit 3    - TC active // Blinking
+// bit 4    - TC Off
 // bit 5    - left turn signal
 // bit 6    - right turn signal
-// bit 7    - shared turn signal // N/A
-// bit 8    - oil pressure warning
-// bit 9    - battery warning
-// bit 10   - ABS active or switched off
-// bit 11   - ignition switch state
+// bit 7    - oil pressure warning
+// bit 8    - battery warning
+// bit 9   - ABS active
+// bit 10   - ABS Fault
+// bit 11   - ignition switch on
 // bit 12   - tpms light
 // bit 13   - cel
 // bit 14   - fog lights
-// bit 15   - lowbeam/parking lights
-
+// bit 15   - lowbeam
+// bit 16   - parking lights
+//bit 17 - cruise control active
 ]]
 
 
@@ -64,18 +66,22 @@ end
 local DL_SHIFT = 2 ^ 0
 local DL_FULLBEAM = 2 ^ 1
 local DL_HANDBRAKE = 2 ^ 2
-local DL_TC = 2 ^ 4
+local DL_TC_ACTIVE = 2 ^ 3
+local DL_TC_OFF = 2 ^ 4
 local DL_SIGNAL_L = 2 ^ 5
 local DL_SIGNAL_R = 2 ^ 6
-local DL_OILWARN = 2 ^ 8
-local DL_BATTERY = 2 ^ 9
-local DL_ABS = 2 ^ 10
+local DL_OILWARN = 2 ^ 7
+local DL_BATTERY = 2 ^ 8
+local DL_ABS_ACTIVE = 2 ^ 9
+local DL_ABS_FAULT = 2 ^ 10
 local DL_IGNITION = 2 ^ 11
 local DL_LOWPRESSURE = 2 ^ 12
 local DL_CHECKENGINE = 2 ^ 13
 local DL_FOG = 2 ^ 14
 local DL_LOWBEAM = 2 ^ 15
-
+local DL_PARKINGLIGHTS = 2 ^ 16
+local DL_CC_ACTIVE = 2 ^ 17
+-- START FROM HERE THIS IS WHER I STOPEED AT ZACHS
 local function fillStruct(o, dtSim)
   if not electrics.values.watertemp then
     -- vehicle not completly initialized, skip sending package
@@ -90,6 +96,7 @@ local function fillStruct(o, dtSim)
   o.fuel = electrics.values.fuel or 0
   o.oilPressure = 0 -- TODO
   o.oilTemp = electrics.values.oiltemp or 0
+
 
   -- the lights
 
@@ -110,11 +117,15 @@ local function fillStruct(o, dtSim)
     o.showLights = bit.bor(o.showLights, DL_HANDBRAKE)
   end
 
-  hasESC = electrics.values.hasESC
+  local hasESC = electrics.values.hasESC or false
   if hasESC then
-    o.dashLights = bit.bor(o.dashLights, DL_TC)
+    o.dashLights = bit.bor(o.dashLights, DL_TC_OFF)
     if electrics.values.esc ~= 0 or electrics.values.tcs ~= 0 then
-      o.showLights = bit.bor(o.showLights, DL_TC)
+      o.showLights = bit.bor(o.showLights, DL_TC_OFF)
+    end
+    o.dashLights = bit.bor(o.dashLights, DL_TC_ACTIVE)
+    if electrics.values.escActive ~= 0 or electrics.values.tcsActive ~= 0 then
+      o.showLights = bit.bor(o.showLights, DL_TC_ACTIVE)
     end
   end
 
@@ -140,9 +151,13 @@ local function fillStruct(o, dtSim)
 
   local hasABS = electrics.values.hasABS or false
   if hasABS then
-    o.dashLights = bit.bor(o.dashLights, DL_ABS)
+    o.dashLights = bit.bor(o.dashLights, DL_ABS_ACTIVE)
+    if electrics.values.absActive ~= 0 then
+      o.showLights = bit.bor(o.showLights, DL_ABS_ACTIVE)
+    end
+    o.dashLights = bit.bor(o.dashLights, DL_ABS_FAULT)
     if electrics.values.abs ~= 0 then
-      o.showLights = bit.bor(o.showLights, DL_ABS)
+      o.showLights = bit.bor(o.showLights, DL_ABS_FAULT)
     end
   end
   
@@ -157,7 +172,7 @@ local function fillStruct(o, dtSim)
   end
 
   o.dashLights = bit.bor(o.dashLights, DL_CHECKENGINE)
-  if electrics.values.checkengine ~= 0 then
+  if electrics.values.checkengine then
     o.showLights = bit.bor(o.showLights, DL_CHECKENGINE)
   end
 
@@ -169,6 +184,11 @@ local function fillStruct(o, dtSim)
   o.dashLights = bit.bor(o.dashLights, DL_LOWBEAM)
   if electrics.values.lowbeam ~= 0 then
     o.showLights = bit.bor(o.showLights, DL_LOWBEAM)
+  end
+
+  o.dashLights = bit.bor(o.dashLights, DL_CC_ACTIVE)
+  if electrics.values.cruiseControlActive ~= 0 then
+    o.showLights = bit.bor(o.showLights, DL_CC_ACTIVE)
   end
   
   o.throttle = electrics.values.throttle

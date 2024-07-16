@@ -9,7 +9,7 @@ import tkinter as tk
 import win_precise_time as wpt
 from datetime import datetime
 
-bus = can.interface.Bus(channel='com6', bustype='seeedstudio', bitrate=500000)
+bus = can.interface.Bus(channel='com7', bustype='seeedstudio', bitrate=500000)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('127.0.0.1', 4567))
     
@@ -18,7 +18,7 @@ start_time_100ms = time.time()
 start_time_10ms = time.time()
 start_time_5s = time.time()
 
-id_counter = 0
+id_counter = 0x80
 counter_4bit = 0
 
 ignition = True
@@ -30,7 +30,6 @@ coolant_temp = 90
 oil_temp = 90
 fuel = 100
 boost = 0
-drive_mode = 2
 
 left_directional = False
 lowpressure = False
@@ -39,21 +38,27 @@ tc_off = False
 tc_active = False
 abs = False
 cruise_control_active = False
-battery = False
+cruise_control_speed = 0
 handbrake = False
-reverse = False
-highbeam = False
+sport_mode = False
 outside_temp = 72
 
 foglight = False
 rear_foglight = False
 lowbeam = False 
+highbeam = False
 check_engine = False
+
 hood = False
 trunk = False
+driver_door = False
+passenger_door = False
+driver_rear_door = False
+passenger_rear_door = False
 
 airbag = False
 seatbelt = False
+sos_call = False
 
 # Global variable for steering wheel control data
 steering_wheel_data = [0, 0, 0]
@@ -68,7 +73,7 @@ def gui_thread():
         steering_wheel_data = [0, 0, random.randint(0,255)]
 
     root = tk.Tk()
-    root.title("G30")
+    root.title("Panamera 970")
 
     button_up = tk.Button(root, text="Up")
     button_up.bind("<ButtonPress>", lambda event: set_steering_wheel_data([0x12, 0x00, 0x01]))
@@ -118,8 +123,7 @@ while True:
         fuel = int(packet[6]*100)
         gearSelector = packet[0]
         gear = packet[1]
-        boost = packet[4]
-        
+        boost = packet[4]*14.5038
         # Parse other packet data (bitwise operations)
         shiftlight = (packet[10]>>0) & 1
         highbeam = (packet[10]>>1) & 1
@@ -132,7 +136,7 @@ while True:
         battery = (packet[10]>>9) & 1
         abs_active = (packet[10]>>10) & 1
         abs_fault = (packet[10]>>11) & 1
-        ignition = (packet[10]>>12) & 1
+        ignition = True
         lowpressure = (packet[10]>>13) & 1
         check_engine = (packet[10]>>14) & 1
         foglight = (packet[10]>>15) & 1
@@ -143,32 +147,65 @@ while True:
     elapsed_time_100ms = current_time - start_time_100ms
     if elapsed_time_100ms >= 0.1:
         date = datetime.now()
-        match gear:
-            case b'\x00':
+        match gearSelector:
+            case 'D':
+                gearByte = 0x50
+            case 'N':
                 gearByte = 0x60
-            case b'\xff':
+            case 'R':
                 gearByte = 0x70
+            case 'P':
+                gearByte = 0x80
             case _:
-                gearByte = int.from_bytes(gear, "big")
+                gearByte = 0x40
 
         messages_100ms = [
-            can.Message(arbitration_id=0x3c0, data=[ # Ignition
-                0,0,0x03,0], is_extended_id=False),
-            can.Message(arbitration_id=0x310, data=[ # Gear
-                gearByte,0x50,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x3c0, data=[ # Ignition -----?
+                0,0,ignition*3,0], is_extended_id=False),
+            can.Message(arbitration_id=0x310, data=[ # Gear -----?
+                int.from_bytes(gear, "big"),gearByte,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x363, data=[ # Directionals -------------
+                0,0,0b00001100,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x30c, data=[ # Automatic Emergency Braking -------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x30d, data=[ # Parking Brake -------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x312, data=[ # Cruise Control -------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x31c, data=[ # E-Power -------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x384, data=[ # Brake Light/ Brake Wear ----------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x38c, data=[ # ABS/ESC -----------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x444, data=[ # Boot/Trunk + SOS Call status -----------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x40, data=[ # Seatbelt/Airbag ------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x539, data=[ # Speed Limit + Compass ----------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x590, data=[ # Left Odometer Menu Controls -----------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x5ec, data=[ # Door Status ------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x5fa, data=[ # Elevation ------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x674, data=[ # TPMS -------------
+                0,0,0,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x662, data=[ # Lighting
                 0x00,0,0b00000011,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x663, data=[ # Alternator and voltage
+            can.Message(arbitration_id=0x663, data=[ # Alternator and voltage -----------
                 0,0,0,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x105, data=[ # Speed
                 0x00,0,int(speed*2),0,0,int(speed*2),0,0], is_extended_id=False),
             can.Message(arbitration_id=0x6b5, data=[ # Oil Temp
                 0,0,0,0,0,128 + int((oil_temp*(9/5)+32 - 155) * (80 - 1) / (300 - 155) + 1),0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x522, data=[ # CEL, Oil Pressure, Coolant Temp
-                0,0,0,0,(int(boost*1.75)&0b111111)<<2,min(int(coolant_temp*2),255),0x10,0], is_extended_id=False),
-            can.Message(arbitration_id=0x677, data=[ # drivemode, outside temp
-                0,0,0,0,0,0,210,0], is_extended_id=False),
+            can.Message(arbitration_id=0x522, data=[ # CEL, Oil Pressure, Coolant Temp ------?
+                0,0,0,0,max(0, int(boost*6.75)),min(int(coolant_temp*2),255),0x10,0], is_extended_id=False),
+            can.Message(arbitration_id=0x677, data=[ # drivemode, outside temp ------?
+                0,0,0,0,0,0,outside_temp*2,0], is_extended_id=False),
             can.Message(arbitration_id=0x5bf, data=steering_wheel_data, is_extended_id=False),
+
             can.Message(arbitration_id=id_counter, data=[
                 random.randint(0,255),random.randint(0,255),random.randint(0,255)], is_extended_id=False),
         ]
@@ -198,7 +235,7 @@ while True:
 
     # Execute code every 5s
     elapsed_time_5s = current_time - start_time_5s
-    if elapsed_time_5s >= 6:
+    if elapsed_time_5s >= 1:
         id_counter += 1
         print(hex(id_counter))
         if id_counter == 0x7ff:
