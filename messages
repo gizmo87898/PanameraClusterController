@@ -1,0 +1,22 @@
+gear message
+2nd byte
+lower
+1001 = service notice transmission (blue message)
+1010 = gearshift not engaged
+1011 = press brake, gear selector not engaged
+1100 transmission fault poss no r gear drive on possible
+1101 gearbox temp too high reduce load
+1110 transmission failure park vehicle safely
+high
+1 = blinking drive
+10 = blinking neutral
+11 = blinking r
+100 blinking p
+101 drive
+110 neutral
+111 reverse
+1000 park
+1101 M and drive
+1110 M
+3rd byte
+bit 1 launch control activated
