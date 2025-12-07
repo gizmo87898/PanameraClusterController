@@ -20,3 +20,77 @@ high
 1110 M
 3rd byte
 bit 1 launch control activated
+
+parking brake 30d
+first byte
+1 parking brake fault and pbrake light
+10000 = release parking brake
+11000 electric parkig brake in service mode
+100000 press brake pedal
+10000000 emergency braking
+312 cruise control
+8th byte
+1000000 cruise control grey
+1100000 cruise control orange
+2nd byte - cruise control speed low byte
+100000 +1mph
+1110000 +2mph
+11000000 +3mph
+3rd byte - cruise control speed high byte
+1 3mph
+10011 60mph
+11001 80mph
+101001 130mph
+101111 150mph
+111111 200mph
+
+e power 31c
+7th byte
+orange boost gauge
+
+compass 
+5th byte
+with 6th at 0
+0 = n
+0x2b = ne
+0x57 = e
+0x84 = se
+0xb1 = s
+0xde = sw
+with 6th at 1
+0xb = w
+0x38 = nw
+0x65 = n
+6th byte
+1 = toggle high byte of compass, makes 0x0 be at between sw and w
+
+elevation
+
+7th byte low byte
+0 0 = -10000ft
+255 0 = -9690ft
+
+
+663 battery
+byte 6 battery voltage
+
+0x2 - 5.1v MIN
+0x15 - 6v
+0x29 - 7v
+0x3d - 8v
+0x51 - 9v
+0x65 - 10v
+0x79 - 11v
+0x8d - 12v
+0xa1 = 13v
+ad 13.5
+b5 14v
+c9 15v
+dd 16v
+f1 17v
+fe 17.6 MAX
+
+byte 4
+10000 start stop not available
+110000 battery discharged
+

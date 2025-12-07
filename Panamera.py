@@ -19,14 +19,14 @@ start_time_100ms = time.time()
 start_time_10ms = time.time()
 start_time_5s = time.time()
 
-id_counter = 0
+id_counter = 0b0
 counter_4bit = 0
 
 ignition = True
 rpm = 4000
 speed = 0
 gear = 1
-gearSelector = 0b10000000
+gear_selector = 0b10000000
 coolant_temp = 90
 oil_temp = 90
 fuel = 100
@@ -53,7 +53,26 @@ roll_mode_active = False
 tc_solid = False
 psm_failure = False
 brake_distribution_fault = False
-
+launch_control_active = False
+aeb_warning = False
+cruise_control_armed = False
+e_power_active = False
+overboost = False
+coolant_level_critical = False
+brake_pad_wear = False
+emergency_call_active = False
+trunk_open = False
+pedestrian_protection_triggered = False
+pedestrian_protection_fault = False
+airbag_light = False
+elevation_unit = True #True for feet, false for meters
+compass_byte = 0x30
+compass_highbyte = False
+speed_limit_sign = 16 #Goes up to 0x64 (500mph), increments of five
+battery_voltage = 0xad
+generator_fault = False
+start_stop_not_available = False
+battery_discharged = False
 
 foglight = False
 rear_foglight = False
@@ -62,15 +81,12 @@ highbeam = False
 check_engine = False
 
 hood = False
-trunk = False
 driver_door = False
 passenger_door = False
 driver_rear_door = False
 passenger_rear_door = False
 
-airbag = False
 seatbelt = False
-sos_call = False
 
 # Global variable for steering wheel control data
 steering_wheel_data = [0, 0, 0]
@@ -159,7 +175,7 @@ while True:
     elapsed_time_100ms = current_time - start_time_100ms
     if elapsed_time_100ms >= 0.1:
         date = datetime.now()
-        match gearSelector:
+        match gear_selector:
             case 'D':
                 gearByte = 0x50
             case 'N':
@@ -174,47 +190,47 @@ while True:
         messages_100ms = [
             can.Message(arbitration_id=0x3c0, data=[ # Ignition -----?
                 0,0,ignition*3,0], is_extended_id=False),
-            can.Message(arbitration_id=0x310, data=[ # Gear -----?
-                gear,gearSelector,launch_control_active,id_counter,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x363, data=[ # Directionals -------------
+            can.Message(arbitration_id=0x310, data=[ # Gear
+                gear,gear_selector,launch_control_active,0,0,0,0,0], is_extended_id=False), 
+            can.Message(arbitration_id=0x363, data=[ # Directionals ------------- TODO
                 0,0,0b00001100,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x30c, data=[ # Automatic Emergency Braking -------------
+            can.Message(arbitration_id=0x30c, data=[ # Automatic Emergency Braking Warning
+                0,0,0,0,0,aeb_warning,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x30d, data=[ # Parking Brake ------------- decoded
                 0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x30d, data=[ # Parking Brake -------------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x312, data=[ # Cruise Control -------------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x31c, data=[ # E-Power -------------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x384, data=[ # Brake Light/ Brake Wear ----------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x38c, data=[ # ABS/ESC -----------
+            can.Message(arbitration_id=0x312, data=[ # Cruise Control ------------- decoded
+                0,0,0,0,0,0,0,(cruise_control_armed*64)+(cruise_control_active*32)], is_extended_id=False),
+            can.Message(arbitration_id=0x31c, data=[ # E-Power 
+                0,0,0,e_power_active*16,0,0,overboost*2,0], is_extended_id=False),
+            can.Message(arbitration_id=0x384, data=[ # Brake Wear and coolant warning
+                0,(brake_pad_wear*128)+coolant_level_critical,0,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x38c, data=[ # ABS/ESC 
                 pdcc_fault+(pasm_fault*2),0,0,0,brake_distribution_fault+(psm_failure*8)+(tc_active*16)+(tc_off*32)+(tc_solid*64)+(roll_mode_active*128),psm_diagnosis_active+(brake_hold*8),awd_sys_failure,0], is_extended_id=False),
-            can.Message(arbitration_id=0x444, data=[ # Boot/Trunk + SOS Call status -----------
+            can.Message(arbitration_id=0x444, data=[ # Boot/Trunk + SOS Call status
+                trunk_open*16,0,emergency_call_active*16,0,0,0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x40, data=[ # Seatbelt/Airbag
+                0,0,0,airbag_light,seatbelt+(pedestrian_protection_triggered*4)+(pedestrian_protection_fault*8),0,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x539, data=[ # Speed Limit + Compass + meters/feet for elevation 
+                0,0,speed_limit_sign,0,compass_byte,compass_highbyte+(elevation_unit*2),0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x590, data=[ # Left Odometer Menu Controls ----------- TODO
                 0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x40, data=[ # Seatbelt/Airbag ------------
+            can.Message(arbitration_id=0x5ec, data=[ # Door Status ------------ TODO
                 0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x539, data=[ # Speed Limit + Compass ----------
+            can.Message(arbitration_id=0x5fa, data=[ # Elevation ------------ kinda decoded
                 0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x590, data=[ # Left Odometer Menu Controls -----------
+            can.Message(arbitration_id=0x674, data=[ # TPMS errors + light ------------- TODO
                 0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x5ec, data=[ # Door Status ------------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x5fa, data=[ # Elevation ------------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x674, data=[ # TPMS -------------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x662, data=[ # Lighting
+            can.Message(arbitration_id=0x662, data=[ # Lighting TODO
                 0x00,0,0b00000011,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x663, data=[ # Alternator and voltage -----------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x105, data=[ # Speed
+            can.Message(arbitration_id=0x663, data=[ # Alternator and voltage
+                0,0,generator_fault,(start_stop_not_available*16)+(battery_discharged*48),0,battery_voltage,0,0], is_extended_id=False),
+            can.Message(arbitration_id=0x105, data=[ # Speed (working) TODO
                 0x00,0,int(speed*2),0,0,int(speed*2),0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x6b5, data=[ # Oil Temp
+            can.Message(arbitration_id=0x6b5, data=[ # Oil Temp (working) TODO
                 0,0,0,0,0,128 + int((oil_temp*(9/5)+32 - 155) * (80 - 1) / (300 - 155) + 1),0,0], is_extended_id=False),
-            can.Message(arbitration_id=0x522, data=[ # CEL, Oil Pressure, Coolant Temp ------?
+            can.Message(arbitration_id=0x522, data=[ # CEL, Oil Pressure, Coolant Temp (working) TODO
                 0,0,0,0,max(0, int(boost*6.75)),min(int(coolant_temp*2),255),0x10,0], is_extended_id=False),
-            can.Message(arbitration_id=0x677, data=[ # drivemode, outside temp ------?
+            can.Message(arbitration_id=0x677, data=[ # drivemode, outside temp TODO
                 0,0,0,0,0,0,outside_temp*2,0], is_extended_id=False),
             can.Message(arbitration_id=0x5bf, data=steering_wheel_data, is_extended_id=False),
 
