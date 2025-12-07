@@ -9,7 +9,7 @@ import tkinter as tk
 import win_precise_time as wpt
 from datetime import datetime
 
-bus = can.interface.Bus(channel='com7', bustype='seeedstudio', bitrate=500000)
+bus = can.interface.Bus(channel='com4', bustype='slcan', bitrate=500000)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('127.0.0.1', 4567))
     
@@ -18,13 +18,13 @@ start_time_100ms = time.time()
 start_time_10ms = time.time()
 start_time_5s = time.time()
 
-id_counter = 0x80
+id_counter = 0
 counter_4bit = 0
 
 ignition = True
 rpm = 780
 speed = 0
-gear = b'0'
+gear = b'1'
 gearSelector = b"P"
 coolant_temp = 90
 oil_temp = 90
@@ -42,6 +42,17 @@ cruise_control_speed = 0
 handbrake = False
 sport_mode = False
 outside_temp = 72
+
+awd_sys_failure = False
+pdcc_fault = False
+pasm_fault = False
+brake_hold  = False
+psm_diagnosis_active = False
+roll_mode_active = False
+tc_solid = False
+psm_failure = False
+brake_distribution_fault = False
+
 
 foglight = False
 rear_foglight = False
@@ -177,7 +188,7 @@ while True:
             can.Message(arbitration_id=0x384, data=[ # Brake Light/ Brake Wear ----------
                 0,0,0,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x38c, data=[ # ABS/ESC -----------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
+                pdcc_fault+(pasm_fault*2),0,0,0,brake_distribution_fault+(psm_failure*8)+(tc_active*16)+(tc_off*32)+(tc_solid*64)+(roll_mode_active*128),psm_diagnosis_active+(brake_hold*8),awd_sys_failure,0], is_extended_id=False),
             can.Message(arbitration_id=0x444, data=[ # Boot/Trunk + SOS Call status -----------
                 0,0,0,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x40, data=[ # Seatbelt/Airbag ------------
@@ -237,7 +248,7 @@ while True:
     elapsed_time_5s = current_time - start_time_5s
     if elapsed_time_5s >= 1:
         id_counter += 1
-        print(hex(id_counter))
+        print(bin(id_counter))
         if id_counter == 0x7ff:
             id_counter = 0
 
