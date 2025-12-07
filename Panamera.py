@@ -44,6 +44,17 @@ handbrake = False
 sport_mode = False
 outside_temp = 72
 
+awd_sys_failure = False
+pdcc_fault = False
+pasm_fault = False
+brake_hold  = False
+psm_diagnosis_active = False
+roll_mode_active = False
+tc_solid = False
+psm_failure = False
+brake_distribution_fault = False
+
+
 foglight = False
 rear_foglight = False
 lowbeam = False 
@@ -178,7 +189,7 @@ while True:
             can.Message(arbitration_id=0x384, data=[ # Brake Light/ Brake Wear ----------
                 0,0,0,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x38c, data=[ # ABS/ESC -----------
-                0,0,0,0,0,0,0,0], is_extended_id=False),
+                pdcc_fault+(pasm_fault*2),0,0,0,brake_distribution_fault+(psm_failure*8)+(tc_active*16)+(tc_off*32)+(tc_solid*64)+(roll_mode_active*128),psm_diagnosis_active+(brake_hold*8),awd_sys_failure,0], is_extended_id=False),
             can.Message(arbitration_id=0x444, data=[ # Boot/Trunk + SOS Call status -----------
                 0,0,0,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x40, data=[ # Seatbelt/Airbag ------------
