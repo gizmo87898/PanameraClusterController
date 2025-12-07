@@ -6,10 +6,11 @@ import struct
 import select 
 import threading
 import tkinter as tk
-import win_precise_time as wpt
+import time as wpt #For testing on linux/macos
+#import win_precise_time as wpt #For Windows
 from datetime import datetime
 
-bus = can.interface.Bus(channel='com7', bustype='seeedstudio', bitrate=500000)
+bus = can.interface.Bus(channel='/dev/ttyACM0', bustype='slcan', bitrate=500000)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('127.0.0.1', 4567))
     
@@ -18,14 +19,14 @@ start_time_100ms = time.time()
 start_time_10ms = time.time()
 start_time_5s = time.time()
 
-id_counter = 0x80
+id_counter = 0
 counter_4bit = 0
 
 ignition = True
-rpm = 780
+rpm = 4000
 speed = 0
-gear = b'0'
-gearSelector = b"P"
+gear = 1
+gearSelector = 0b10000000
 coolant_temp = 90
 oil_temp = 90
 fuel = 100
@@ -163,7 +164,7 @@ while True:
             can.Message(arbitration_id=0x3c0, data=[ # Ignition -----?
                 0,0,ignition*3,0], is_extended_id=False),
             can.Message(arbitration_id=0x310, data=[ # Gear -----?
-                int.from_bytes(gear, "big"),gearByte,0,0,0,0,0,0], is_extended_id=False),
+                gear,gearSelector,launch_control_active,id_counter,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x363, data=[ # Directionals -------------
                 0,0,0b00001100,0,0,0,0,0], is_extended_id=False),
             can.Message(arbitration_id=0x30c, data=[ # Automatic Emergency Braking -------------
@@ -237,7 +238,7 @@ while True:
     elapsed_time_5s = current_time - start_time_5s
     if elapsed_time_5s >= 1:
         id_counter += 1
-        print(hex(id_counter))
+        print(bin(id_counter))
         if id_counter == 0x7ff:
             id_counter = 0
 
